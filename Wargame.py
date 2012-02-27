@@ -58,10 +58,10 @@ class Wargame():
         if self.player.espionageGoal['complete']:
             # Set a new goal
             self.player.setNewEspionageGoal()
-            self.player.espionageGoal['resourcesRequired'] = 100 * self.field.getNumberControlledTerritories("O")
+            self.player.espionageGoal['resourcesRequired'] = 200 * self.field.getNumberControlledTerritories("O")
         if self.enemy.espionageGoal['complete']:
             self.enemy.setNewEspionageGoal()
-            self.enemy.espionageGoal['resourcesRequired'] = 100 * self.field.getNumberControlledTerritories("X")
+            self.enemy.espionageGoal['resourcesRequired'] = 200 * self.field.getNumberControlledTerritories("X")
         # Check if espionage perks needs to be activated
         # If so, set it to complete. It will be reset next turn
         if self.player.espionageGoal['resources'] > self.player.espionageGoal['resourcesRequired']:
@@ -135,9 +135,35 @@ class Wargame():
             self.write("this month because of your " + self.player.getCurrentStanceName() + " stance.")
         # Any ESP perks that triggered this month
         if self.player.espionageGoal['complete']:
-            self.write("Your spies have completed work on their espionage goals.")
+            self.write("Your spies report a breakthrough in their covert operations.")
+            if self.player.espionageGoal['goal'] == 'attack':
+                self.write('They have mapped enemy defenses, and any attack this month')
+                self.write('will be made as if it were double strength.')
+            elif self.player.espionageGoal['goal'] == 'defense':
+                self.write('They have intercepted enemy transmissions and know where they plan')
+                self.write('to attack. Your forces will defend at double strength this month.')
+            elif self.player.espionageGoal['goal'] == 'convert':
+                enemyTerritories = []
+                for i in range(self.field.width):
+                    for j in range(self.field.height):
+                        if self.field.locations[i][j] == "X":
+                            enemyTerritories.append((i, j))
+                defectingTerritory = self.rand.choice(enemyTerritories)
+                self.field.locations[defectingTerritory[0]][defectingTerritory[1]] = "O"
+                self.write('They have incited rioting, causing the enemy territory located')
+                self.write('at ' + str(defectingTerritory) + ' to defect to your cause.')
         
         print""
+        # activate enemy espionage perks if completed
+        if self.enemy.espionageGoal['complete'] and self.enemy.espionageGoal['goal'] == 'convert':
+            enemyTerritories = []
+            for i in range(self.field.width):
+                for j in range(self.field.height):
+                    if self.field.locations[i][j] == "O":
+                        enemyTerritories.append((i, j))
+            defectingTerritory = self.rand.choice(enemyTerritories)
+            self.field.locations[defectingTerritory[0]][defectingTerritory[1]] = "X"
+
         # the enemy's stance toward you is...
         self.write("The enemy's stance toward you has been " + str(self.enemy.getCurrentStanceName()) + ".")
         # if stance is sneaky, show enemy resource amounts
@@ -148,6 +174,18 @@ class Wargame():
             self.write("Our spies report that the enemy are allocating their resources")
             self.write("this month as follows:")
             self.write(str(self.enemy.OFF) + " offense, " + str(self.enemy.DEF) + " defense, " + str(self.enemy.ESP) + " espionage")
+            # show enemy perk activation if devious
+            if self.enemy.espionageGoal['complete']:
+                if self.enemy.espionageGoal['goal'] == 'attack':
+                    self.write('You have caught enemy spies mapping your territory. They will make')
+                    self.write('any attacks against you this month at double strength.')
+                elif self.enemy.espionageGoal['goal'] == 'defense':
+                    self.write('You have caught enemy messengers in possession of your military codes.')
+                    self.write('They will be prepared for you this month, and will defend at double strength.')
+                elif self.enemy.espionageGoal['goal'] == 'convert':
+                    self.write('Enemy agents have incited riots, causing your territory located')
+                    self.write('at ' + str(defectingTerritory) + ' to defect.')
+        
         print ""
         self.write("Battlefield control is as follows:")
         print ""
@@ -309,6 +347,8 @@ class Wargame():
                     self.write("Your " + self.player.getCurrentStanceName() + " stance results in a " + str(int(playerAdditionalAttack * 100)) + "% bonus")
                     self.write("to your attack effectiveness.")
                 troopCount *= 1 + playerAdditionalAttack
+                if self.player.espionageGoal['complete'] and self.player.espionageGoal['goal'] == 'attack':
+                    troopCount *= 2
                 enemyAdditionalDefense = 0
                 if self.enemy.getCurrentStanceName() in ['balanced', 'defensive', 'entrenched']:
                     enemyAdditionalDefense += .1
@@ -321,6 +361,8 @@ class Wargame():
                     self.write("to their defense effectiveness.")
                 enemyTempDefense = enemyDefenseNumber
                 enemyTempDefense *= 1 + enemyAdditionalDefense
+                if self.enemy.espionageGoal['complete'] and self.enemy.espionageGoal['goal'] == 'defense':
+                    enemyTempDefense *= 2
                 if troopCount > enemyTempDefense:
                     # we won
                     self.write("Our forces emerged victorious! We now control " + str(location) + ".")
@@ -352,6 +394,8 @@ class Wargame():
                     self.write("The enemy's " + self.enemy.getCurrentStanceName() + " stance results in a " + str(int(enemyAdditionalAttack * 100)) + "% bonus")
                     self.write("to their attack effectiveness.")
                 troopCount *= 1 + enemyAdditionalAttack
+                if self.enemy.espionageGoal['complete'] and self.enemy.espionageGoal['goal'] == 'attack':
+                    troopCount *= 2
                 playerAdditionalDefense = 0
                 if self.player.getCurrentStanceName() in ['balanced', 'defensive', 'entrenched']:
                     playerAdditionalDefense += .1
@@ -364,6 +408,8 @@ class Wargame():
                     self.write("to your defense effectiveness.")
                 playerTempDefense = playerDefenseNumber
                 playerTempDefense *= 1 + playerAdditionalDefense
+                if self.player.espionageGoal['complete'] and self.player.espionageGoal['goal'] == 'defense':
+                    playerTempDefense *= 2
                 if troopCount > playerTempDefense:
                     # we lost
                     self.write("Enemy forces emerged victorious, and they now control " + str(location) + ".")
@@ -378,12 +424,7 @@ class Wargame():
             print ""
                 
     # TODO: How to handle the case where both factions attack an uncontested territory in the same turn?
-    # Current enemy just overrides the territory b/c it goes 2nd and you weren't defending
-    # Conservative/peaceful stance grants increase to resources per territory
-    # Balanced stance gives small bonus to everything
-    # Offensive stances: higher chance to launch attack
-    # Defensive stances: increased ability to defend
-    # Espionage stances: faster increase toward ESP perks
+    # Currently enemy just overrides the territory b/c it goes 2nd and you weren't defending
         
     def write(self, content):
         for l in content:
@@ -434,7 +475,7 @@ class Faction:
         self.defeated = False
         self.espionageGoal = dict(complete=True)
     def setNewEspionageGoal(self):
-        self.espionageGoal['goal'] = 'test'
+        self.espionageGoal['goal'] = random.choice(['attack', 'defense', 'convert'])
         self.espionageGoal['resources'] = 0
         self.espionageGoal['complete'] = False
     def getStance(self, OFF, DEF, ESP):
