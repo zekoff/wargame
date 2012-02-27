@@ -150,6 +150,15 @@ class Test(unittest.TestCase):
         number = len(field.getBorderTerritoriesList("O"))
         self.assertEqual(number, 8)
         
+    def testEspionageDictExists(self):
+        faction = Faction()
+        self.assertIsInstance(faction.espionageGoal, dict)
+        
+    def testNewEspionageGoalResets(self):
+        faction = Faction()
+        faction.setNewEspionageGoal()
+        self.assertEqual(faction.espionageGoal['complete'], False)
+        
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()

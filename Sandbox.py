@@ -5,7 +5,4 @@ Created on Feb 25, 2012
 '''
 
 if __name__ == '__main__':
-    d = dict()
-    d['test'] = 0
-    d['test'] += 10
-    print d['test']
+    newDict = dict()

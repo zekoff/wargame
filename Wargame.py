@@ -54,6 +54,22 @@ class Wargame():
         # Do turn-reset kind of stuff
         self.player.recordCurrentAllocationToHistory()
         self.enemy.recordCurrentAllocationToHistory()
+        # Check if espionage goals need to be reset
+        if self.player.espionageGoal['complete']:
+            # Set a new goal
+            self.player.setNewEspionageGoal()
+            self.player.espionageGoal['resourcesRequired'] = 100 * self.field.getNumberControlledTerritories("O")
+        if self.enemy.espionageGoal['complete']:
+            self.enemy.setNewEspionageGoal()
+            self.enemy.espionageGoal['resourcesRequired'] = 100 * self.field.getNumberControlledTerritories("X")
+        # Check if espionage perks needs to be activated
+        # If so, set it to complete. It will be reset next turn
+        if self.player.espionageGoal['resources'] > self.player.espionageGoal['resourcesRequired']:
+            self.player.espionageGoal['complete'] = True
+        if self.enemy.espionageGoal['resources'] > self.enemy.espionageGoal['resourcesRequired']:
+            self.enemy.espionageGoal['complete'] = True
+        # Consider making required resources increase slightly exponentially, to favor less territories?
+        
         # Player resource increase
         playerResourcesFromTerritory = self.field.getNumberControlledTerritories("O") * 50
         playerResourcesFromTerritory *= (1 + (rand.random() / 2 - .25))
@@ -116,8 +132,10 @@ class Wargame():
         # display bonuses from stance this turn
         if playerAdditionalResources > 0:
             self.write("You gain an additional " + str(int(playerAdditionalResources * 100)) + "% resources from territory")
-            self.write("this month because of your stance.")
+            self.write("this month because of your " + self.player.getCurrentStanceName() + " stance.")
         # Any ESP perks that triggered this month
+        if self.player.espionageGoal['complete']:
+            self.write("Your spies have completed work on their espionage goals.")
         
         print""
         # the enemy's stance toward you is...
@@ -162,6 +180,40 @@ class Wargame():
             if self.getBooleanInput():
                 done = True
         print ""
+        # Increase espionage counter based on resource allocation
+        playerEspionageIncrease = self.player.ESP / float(100) * self.player.resources
+        playerEspionageBonus = 0
+        if self.player.getCurrentStanceName() in ['balanced', 'sneaky', 'devious']:
+            playerEspionageBonus += .05
+        if self.player.getCurrentStanceName() in ['sneaky', 'devious']:
+            playerEspionageBonus += .1
+        if self.player.getCurrentStanceName() == 'devious':
+            playerEspionageBonus += .2
+        playerEspionageIncrease *= 1 + playerEspionageBonus
+        playerEspionageIncrease = int(playerEspionageIncrease)
+        self.player.espionageGoal['resources'] += playerEspionageIncrease
+        if playerEspionageIncrease > 0:
+            self.write("Your spies benefit from the " + str(playerEspionageIncrease) + " resources devoted to espionage this month.")
+            if playerEspionageBonus > 0:
+                self.write("This includes a " + str(int(playerEspionageBonus * 100)) + "% bonus based on your stance.")
+            if self.season == 'fall':
+                pass
+        # Enemy espionage increase
+        enemyEspionageIncrease = self.enemy.ESP / float(100) * self.enemy.resources
+        enemyEspionageBonus = 0
+        if self.enemy.getCurrentStanceName() in ['balanced', 'sneaky', 'devious']:
+            enemyEspionageBonus += .05
+        if self.enemy.getCurrentStanceName() in ['sneaky', 'devious']:
+            enemyEspionageBonus += .1
+        if self.enemy.getCurrentStanceName() == 'devious':
+            enemyEspionageBonus += .2
+        enemyEspionageIncrease *= 1 + enemyEspionageBonus
+        enemyEspionageIncrease = int(enemyEspionageIncrease)
+        self.enemy.espionageGoal['resources'] += enemyEspionageIncrease
+        if self.player.getCurrentStanceName() == 'devious' and enemyEspionageIncrease > 0:
+            self.write("Your enemy was able to put " + str(enemyEspionageIncrease) + " resources towards espionage this month.")
+        print ""
+        
         # combat phase
         self.combatPhase()
         
@@ -336,7 +388,7 @@ class Wargame():
     def write(self, content):
         for l in content:
             sys.stdout.write(l)
-            time.sleep(.012)
+#            time.sleep(.012)
         sys.stdout.write("\n")
     def getBooleanInput(self):
         sys.stdout.write("> ")
@@ -347,7 +399,8 @@ class Wargame():
         else:
             return False
     def shortSleep(self):
-        time.sleep(1.3)
+        pass
+#        time.sleep(1.3)
     def getPercentageInput(self):
         done = False
         response = ""
@@ -379,6 +432,11 @@ class Faction:
         self.stanceList = []
         self.allocationHistory = []
         self.defeated = False
+        self.espionageGoal = dict(complete=True)
+    def setNewEspionageGoal(self):
+        self.espionageGoal['goal'] = 'test'
+        self.espionageGoal['resources'] = 0
+        self.espionageGoal['complete'] = False
     def getStance(self, OFF, DEF, ESP):
         bestStanceFitness = 2000 # lower is better
         bestFitnessIndex = 0
