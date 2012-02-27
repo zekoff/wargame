@@ -57,11 +57,27 @@ class Wargame():
         # Player resource increase
         playerResourcesFromTerritory = self.field.getNumberControlledTerritories("O") * 50
         playerResourcesFromTerritory *= (1 + (rand.random() / 2 - .25))
+        playerAdditionalResources = 0
+        if self.player.getCurrentStanceName() in ['balanced', 'conservative', 'peaceful']:
+            playerAdditionalResources += .05
+        if self.player.getCurrentStanceName() in ['conservative', 'peaceful']:
+            playerAdditionalResources += .15
+        if self.player.getCurrentStanceName() == 'peaceful':
+            playerAdditionalResources += .3 
+        playerResourcesFromTerritory *= 1 + playerAdditionalResources
         playerResourcesFromTerritory = int(playerResourcesFromTerritory)
         self.player.resources += playerResourcesFromTerritory
         # Enemy resource increase
         enemyResourcesFromTerritory = self.field.getNumberControlledTerritories("X") * 50
         enemyResourcesFromTerritory *= (1 + (rand.random() / 2 - .25))
+        enemyAdditionalResources = 0
+        if self.enemy.getCurrentStanceName() in ['balanced', 'conservative', 'peaceful']:
+            enemyAdditionalResources += .05
+        if self.enemy.getCurrentStanceName() in ['conservative', 'peaceful']:
+            enemyAdditionalResources += .15
+        if self.enemy.getCurrentStanceName() == 'peaceful':
+            enemyAdditionalResources += .3 
+        enemyResourcesFromTerritory *= 1 + enemyAdditionalResources
         enemyResourcesFromTerritory = int(enemyResourcesFromTerritory)
         self.enemy.resources += enemyResourcesFromTerritory
         # Increment date
@@ -98,6 +114,10 @@ class Wargame():
         print ""
         self.write("You are taking a " + self.player.getCurrentStanceName() + " stance toward the " + self.enemyName + ".")
         # display bonuses from stance this turn
+        if playerAdditionalResources > 0:
+            self.write("You gain an additional " + str(int(playerAdditionalResources * 100)) + "% resources from territory")
+            self.write("this month because of your stance.")
+        # Any ESP perks that triggered this month
         
         print""
         # the enemy's stance toward you is...
@@ -219,7 +239,7 @@ class Wargame():
         playerDefenseNumber = self.player.resources / len(playerDefenseLocations) * self.player.DEF / 100
         enemyDefenseNumber = self.enemy.resources / len(enemyDefenseLocations) * self.enemy.DEF / 100
 
-        # troops attack
+        # player attacks
         for location, troopCount in playerDeployment.iteritems():
             self.write("** Attack on " + str(location) + " **")
             self.write(str(troopCount) + " resources were devoted to attacking location " + str(location) + ".")
@@ -228,9 +248,30 @@ class Wargame():
                 self.write("The enemy devoted " + str(enemyDefenseNumber) + " resources to defending this location.")
                 # modify atk/def as necessary
                 self.player.resources -= troopCount
-                if troopCount > enemyDefenseNumber:
+                playerAdditionalAttack = 0
+                if self.player.getCurrentStanceName() in ['offensive', 'bloodthirsty']:
+                    playerAdditionalAttack += .1
+                if self.player.getCurrentStanceName() == 'bloodthirsty':
+                    playerAdditionalAttack += .15
+                if playerAdditionalAttack > 0:
+                    self.write("Your " + self.player.getCurrentStanceName() + " stance results in a " + str(int(playerAdditionalAttack * 100)) + "% bonus")
+                    self.write("to your attack effectiveness.")
+                troopCount *= 1 + playerAdditionalAttack
+                enemyAdditionalDefense = 0
+                if self.enemy.getCurrentStanceName() in ['balanced', 'defensive', 'entrenched']:
+                    enemyAdditionalDefense += .1
+                if self.enemy.getCurrentStanceName() in ['defensive', 'entrenched']:
+                    enemyAdditionalDefense += .2
+                if self.enemy.getCurrentStanceName() == 'entrenched':
+                    enemyAdditionalDefense += .4
+                if enemyAdditionalDefense > 0:
+                    self.write("The enemy's " + self.enemy.getCurrentStanceName() + " stance results in a " + str(int(enemyAdditionalDefense * 100)) + "% bonus")
+                    self.write("to their defense effectiveness.")
+                enemyTempDefense = enemyDefenseNumber
+                enemyTempDefense *= 1 + enemyAdditionalDefense
+                if troopCount > enemyTempDefense:
                     # we won
-                    self.write("Our forces emerged victorious, and we now control " + str(location) + ".")
+                    self.write("Our forces emerged victorious! We now control " + str(location) + ".")
                     self.enemy.resources -= enemyDefenseNumber
                     self.field.locations[location[0]][location[1]] = "O"
                 else:
@@ -250,14 +291,35 @@ class Wargame():
                 self.write("We defended this location with " + str(playerDefenseNumber) + " resources.")
                 # modify atk/def as necessary
                 self.enemy.resources -= troopCount
-                if troopCount > playerDefenseNumber:
+                enemyAdditionalAttack = 0
+                if self.enemy.getCurrentStanceName() in ['offensive', 'bloodthirsty']:
+                    enemyAdditionalAttack += .1
+                if self.enemy.getCurrentStanceName() == 'bloodthirsty':
+                    enemyAdditionalAttack += .15
+                if enemyAdditionalAttack > 0:
+                    self.write("The enemy's " + self.enemy.getCurrentStanceName() + " stance results in a " + str(int(enemyAdditionalAttack * 100)) + "% bonus")
+                    self.write("to their attack effectiveness.")
+                troopCount *= 1 + enemyAdditionalAttack
+                playerAdditionalDefense = 0
+                if self.player.getCurrentStanceName() in ['balanced', 'defensive', 'entrenched']:
+                    playerAdditionalDefense += .1
+                if self.player.getCurrentStanceName() in ['defensive', 'entrenched']:
+                    playerAdditionalDefense += .2
+                if self.player.getCurrentStanceName() == 'entrenched':
+                    playerAdditionalDefense += .4
+                if playerAdditionalDefense > 0:
+                    self.write("Your " + self.player.getCurrentStanceName() + " stance results in a " + str(int(playerAdditionalDefense * 100)) + "% bonus")
+                    self.write("to your defense effectiveness.")
+                playerTempDefense = playerDefenseNumber
+                playerTempDefense *= 1 + playerAdditionalDefense
+                if troopCount > playerTempDefense:
                     # we lost
                     self.write("Enemy forces emerged victorious, and they now control " + str(location) + ".")
                     self.player.resources -= playerDefenseNumber
                     self.field.locations[location[0]][location[1]] = "X"
                 else:
                     # we won
-                    self.write("The enemy was outmatched. We retain control over this location.")
+                    self.write("The enemy was outmatched! We retain control over this location.")
             else:
                 self.write("Combat was uncontested, and enemy forces now claim " + str(location) + ".") 
                 self.field.locations[location[0]][location[1]] = "X"
