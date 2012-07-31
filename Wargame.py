@@ -429,7 +429,7 @@ class Wargame():
     def write(self, content):
         for l in content:
             sys.stdout.write(l)
-#            time.sleep(.012)
+            time.sleep(.012)
         sys.stdout.write("\n")
     def getBooleanInput(self):
         sys.stdout.write("> ")
@@ -441,7 +441,7 @@ class Wargame():
             return False
     def shortSleep(self):
         pass
-#        time.sleep(1.3)
+        time.sleep(1.3)
     def getPercentageInput(self):
         done = False
         response = ""
